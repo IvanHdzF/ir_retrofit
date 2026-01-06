@@ -1,0 +1,4 @@
+#ifndef EVT_BUS_TEST_COMMON_H
+#define EVT_BUS_TEST_COMMON_H
+
+#endif /* EVT_BUS_TEST_COMMON_H */
