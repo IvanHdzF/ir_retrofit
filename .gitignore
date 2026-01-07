@@ -1,9 +1,9 @@
 # Compiled objects and binaries
-build**/*
+**/build**/*
 
 # .vscode specific user config
 .vscode/*
 
 # Python virtual env
-__pycache__/**
+**/__pycache__/**
 venv/**

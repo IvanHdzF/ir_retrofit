@@ -1,4 +1,4 @@
-set(srcs "evt_bus_test_main.c")
+set(srcs "test_evt_bus_main.c")
 
 
 message(STATUS "Extra component dirs: ${EXTRA_COMPONENT_DIRS}")
@@ -9,6 +9,6 @@ message(STATUS "Extra component dirs AFTER: ${EXTRA_COMPONENT_DIRS}")
 idf_component_register(SRCS ${srcs}
                        INCLUDE_DIRS "."
                        # Add ESP_IDF libraries here as needed
-                       REQUIRES evt_bus
+                       REQUIRES evt_bus unity
                        WHOLE_ARCHIVE
                     )
