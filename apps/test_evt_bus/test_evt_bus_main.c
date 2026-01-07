@@ -20,6 +20,8 @@
 #include "unity.h"
 #include "esp_log.h"
 #include "evt_bus/evt_bus.h"
+#include "evt_bus_port_freertos.h"
+#include "evt_bus_port_freertos_config.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -309,6 +311,102 @@ static void test_subscription_list_self_heal(void)
 }
 
 /* =========================
+ * FreeRTOS port heartbeat tests
+ * ========================= */
+static void test_fr_hb_last_tick_monotonic(void)
+{
+#if EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS > 0
+    TickType_t t0 = evt_bus_freertos_hb_last_tick();
+    vTaskDelay(pdMS_TO_TICKS(EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS * 2 + 10));
+    TickType_t t1 = evt_bus_freertos_hb_last_tick();
+
+    /* last_tick should advance over time */
+    TEST_ASSERT_TRUE_MESSAGE(t1 != 0, "hb last_tick never set");
+    TEST_ASSERT_TRUE_MESSAGE((TickType_t)(t1 - t0) > 0, "hb last_tick not monotonic/advancing");
+#else
+    TEST_IGNORE_MESSAGE("Heartbeat disabled (EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS==0)");
+#endif
+}
+
+static void test_fr_hb_beats_increase_while_idle(void)
+{
+#if EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS > 0
+    uint32_t b0 = evt_bus_freertos_hb_beat_count();
+
+    /* Wait ~3 beats (plus slack) with no events published */
+    vTaskDelay(pdMS_TO_TICKS(EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS * 3 + 20));
+
+    uint32_t b1 = evt_bus_freertos_hb_beat_count();
+    TEST_ASSERT_TRUE_MESSAGE(b1 > b0, "beat_count did not increase while idle");
+#else
+    TEST_IGNORE_MESSAGE("Heartbeat disabled (EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS==0)");
+#endif
+}
+
+static SemaphoreHandle_t g_sem_fr_dispatch = NULL;
+
+static void cb_fr_dispatch_probe(const evt_t *evt, void *user_ctx)
+{
+    (void)user_ctx;
+    TEST_ASSERT_NOT_NULL(evt);
+    xSemaphoreGive(g_sem_fr_dispatch);
+}
+
+static void test_fr_hb_events_dispatched_counts_only_dispatches(void)
+{
+#if EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS > 0
+    if (g_sem_fr_dispatch == NULL) {
+        g_sem_fr_dispatch = xSemaphoreCreateBinary();
+    }
+    TEST_ASSERT_NOT_NULL(g_sem_fr_dispatch);
+
+    /* Subscribe + publish N events, ensure N dispatches, and counter delta >= N */
+    const int N = 5;
+    const evt_id_t EID = 4;
+
+    evt_sub_handle_t h = evt_bus_subscribe(EID, cb_fr_dispatch_probe, NULL);
+    TEST_ASSERT_TRUE(evt_handle_is_valid(h));
+
+    uint32_t d0 = evt_bus_freertos_hb_events_dispatched();
+
+    for (int i = 0; i < N; i++) {
+        TEST_ASSERT_TRUE(evt_bus_publish(EID, &i, sizeof(i)));
+        TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(g_sem_fr_dispatch, pdMS_TO_TICKS(EVT_ITEST_TIMEOUT_MS)));
+    }
+
+    uint32_t d1 = evt_bus_freertos_hb_events_dispatched();
+
+    /* Heartbeat beats also happen, but events_dispatched must track dispatches */
+    TEST_ASSERT_TRUE_MESSAGE((d1 - d0) >= (uint32_t)N, "events_dispatched did not track dispatches");
+
+    evt_bus_unsubscribe(h);
+#else
+    TEST_IGNORE_MESSAGE("Heartbeat disabled (EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS==0)");
+#endif
+}
+
+/* Optional: when heartbeat is disabled, beat_count should stay 0 forever.
+   This assumes s_hb is zero-initialized and never ticked in the blocking loop. */
+static void test_fr_no_heartbeat_when_disabled(void)
+{
+#if EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS == 0
+    uint32_t b0 = evt_bus_freertos_hb_beat_count();
+    TickType_t t0 = evt_bus_freertos_hb_last_tick();
+
+    vTaskDelay(pdMS_TO_TICKS(250));
+
+    uint32_t b1 = evt_bus_freertos_hb_beat_count();
+    TickType_t t1 = evt_bus_freertos_hb_last_tick();
+
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(b0, b1, "beat_count changed but heartbeat is disabled");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE((uint32_t)t0, (uint32_t)t1, "last_tick changed but heartbeat is disabled");
+#else
+    TEST_IGNORE_MESSAGE("Heartbeat enabled (EVT_BUS_FREERTOS_HEARTBEAT_TICKS_MS>0)");
+#endif
+}
+
+
+/* =========================
  * Unity test runner
  * ========================= */
 static void run_all_tests(void)
@@ -319,6 +417,11 @@ static void run_all_tests(void)
     RUN_TEST(test_stale_handle_safety);
     RUN_TEST(test_queue_overflow_drop_new);
     RUN_TEST(test_subscription_list_self_heal);
+
+    RUN_TEST(test_fr_hb_last_tick_monotonic);
+    RUN_TEST(test_fr_hb_beats_increase_while_idle);
+    RUN_TEST(test_fr_hb_events_dispatched_counts_only_dispatches);
+    RUN_TEST(test_fr_no_heartbeat_when_disabled);
 }
 
 /* =========================
