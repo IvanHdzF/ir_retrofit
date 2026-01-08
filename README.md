@@ -161,3 +161,16 @@ idf.py -DAPP_NAME=system_demo flash monitor
 - Core services under implementation
 
 This repository prioritizes **correctness, clarity, and extensibility** over feature completeness.
+
+## CI
+- Firmware is built using ESP-IDF in a container
+- Unit tests run in Wokwi simulation via pytest-embedded
+- Local CI is reproducible using `act`
+
+### Run locally
+```bash
+act -j run-target --bind \
+  --matrix '{"espidf_target":"esp32s3"}' \
+  --env ACT=true \
+  --secret-file .secrets
+```
