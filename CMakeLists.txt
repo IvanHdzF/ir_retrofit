@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Choose which app to build
-set(APP_NAME "system_demo" CACHE STRING "Select which application to build")
+set(APP_NAME "test_evt_bus" CACHE STRING "Select which application to build")
 message(STATUS "Building application: ${APP_NAME}")
 
 # Paths
@@ -18,6 +18,7 @@ endif()
 # Use separate variables per app
 # Declared here because it gives compilation errors when being included in apps folder CMakeLists.txt
 set(APP_COMPONENTS_infrared_test "")
+set(APP_COMPONENTS_test_evt_bus "${CUSTOM_ROOT_PATH}/externals/embedded_evt_bus/ports/esp-idf/evt_bus")
 set(APP_COMPONENTS_system_demo "")
 
 
