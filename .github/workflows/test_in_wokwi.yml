@@ -10,7 +10,7 @@ on:
 jobs:
   run-target:
     name: Run Test App in simulation
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
     strategy:
@@ -29,7 +29,7 @@ jobs:
         if: ${{ github.actor != 'nektos/act' }}
         uses: actions/download-artifact@v4
         with:
-          name: apps/test_evt_bus_bin_${{ matrix.espidf_target }}
+          name: build-${{ matrix.app_name }}-${{ matrix.espidf_target }}
           path: apps/test_evt_bus/build
 
       # Only on ACT
@@ -61,9 +61,9 @@ jobs:
 
       - name: Run Test App in Wokwi Simulation
         if: ${{ env.WOKWI_CLI_TOKEN != '' }}
-        working-directory: apps/test_evt_bus
+        working-directory: apps/${{ matrix.app_name }}
         run: |
-          ls -l
+          ls -l build
           pytest \
           --junit-xml=./test_app_results_esp32s3.xml \
           --embedded-services idf,wokwi \
@@ -79,14 +79,15 @@ jobs:
         if: ${{ always() && github.actor != 'nektos/act' }}
         uses: actions/upload-artifact@v4
         with:
-          name: apps/test_evt_bus_results_wokwi${{ matrix.espidf_target }}
+          name: test_evt_bus_results_wokwi${{ matrix.espidf_target }}
           path: apps/test_evt_bus/*.xml
 
   publish-results:
     name: Publish Test App results
     needs: run-target
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: ${{ always() && github.actor != 'nektos/act' }}
+
     steps:
       - name: Download Test results
         uses: actions/download-artifact@v4
@@ -97,3 +98,4 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: test_results/**/*.xml
+

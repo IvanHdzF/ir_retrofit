@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Build (${{ matrix.app_name }} / ${{ matrix.espidf_target }})
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -44,8 +44,11 @@ jobs:
           name: build-${{ matrix.app_name }}-${{ matrix.espidf_target }}
           path: |
             build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/fw.bin
+            build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/fw.elf
             build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/bootloader/bootloader.bin
             build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/partition_table/partition-table.bin
             build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/flash_args
             build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/sdkconfig
+            build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/flasher_args.json
+            build_${{ matrix.app_name }}_${{ matrix.espidf_target }}/config/sdkconfig.json
 
