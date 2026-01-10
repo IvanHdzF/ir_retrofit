@@ -131,6 +131,17 @@ docs/components/
 ```
 
 ---
+## Repository Setup
+
+This repository uses Git submodules for shared components and external
+dependencies.
+
+After cloning, initialize all submodules:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive
+```
 
 ## Build & Development
 
